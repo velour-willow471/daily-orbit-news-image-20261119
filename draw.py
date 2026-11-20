@@ -61,6 +61,29 @@ def para(x, y, text, fnt, maxw, leading, fill=INK):
         y += leading
     return y
 
+def dropcap_para(x, y, text, fnt, maxw, leading):
+    """Body copy with a broadsheet drop cap: the first letter is set large
+    in navy and the first three lines wrap around it."""
+    cap, rest = text[0], text[1:]
+    cap_f = font(SERIF_BLACK, 34)
+    cap_w = tw(cap, cap_f) + 7
+    d.text((x, y - 3), cap, font=cap_f, fill=NAVY)
+    lines, cur = [], ""
+    for w_ in rest.split():
+        limit = maxw - cap_w if len(lines) < 3 else maxw
+        t = (cur + " " + w_).strip()
+        if tw(t, fnt) <= limit:
+            cur = t
+        else:
+            lines.append(cur)
+            cur = w_
+    if cur:
+        lines.append(cur)
+    for i, ln in enumerate(lines):
+        d.text((x + cap_w if i < 3 else x, y), ln, font=fnt, fill=INK)
+        y += leading
+    return y
+
 def centered(y, text, fnt, fill=INK):
     d.text(((W - tw(text, fnt)) / 2, y), text, font=fnt, fill=fill)
 
@@ -95,10 +118,13 @@ hline(MX, W - MX, 166, INK, 1)
 
 # ---------------------------------------------------------------- ticker
 d.rectangle([MX, 172, W - MX, 200], fill=DARKBAR)
-ticker = ("MARKETS   S&P 500  -2.0%  ·  NIKKEI  -4.7%  ·  OIL JUMPS ON HORMUZ NEWS"
-          "   ·   ANTHROPIC IN RECORD MARKET DEBUT   ·   VAN GOGH  $190.4M")
+ticker_a = "MARKETS   "
+ticker_b = ("S&P 500  -2.0%  ·  NIKKEI  -4.7%  ·  OIL JUMPS ON HORMUZ NEWS"
+            "   ·   ANTHROPIC IN RECORD MARKET DEBUT   ·   VAN GOGH  $190.4M")
 f_tick = font(SANS_CONDB, 13)
-d.text(((W - tw(ticker, f_tick)) / 2, 179), ticker, font=f_tick, fill=(245, 240, 225))
+tx = (W - tw(ticker_a + ticker_b, f_tick)) / 2
+d.text((tx, 179), ticker_a, font=f_tick, fill=(232, 197, 120))
+d.text((tx + tw(ticker_a, f_tick), 179), ticker_b, font=f_tick, fill=(245, 240, 225))
 
 # ---------------------------------------------------------------- main story
 y = 210
@@ -113,7 +139,7 @@ for ln in ["World court finds Myanmar guilty",
            "of genocide against Rohingya"]:
     centered(y, ln, f_main)
     y += 46
-y += 2
+y += 5
 centered(y, "First genocide judgment against a State — refugees cheer the verdict",
          font(SERIF_IT, 16))
 y += 24
@@ -123,6 +149,7 @@ y += 18
 # courthouse illustration: pediment, columns, scales (centred banner)
 ix0, ix1 = MX + 330, W - MX - 330
 # simple pediment + columns
+d.ellipse([(ix0 + ix1) // 2 - 4, y + 6, (ix0 + ix1) // 2 + 4, y + 14], outline=GOLD, width=2)
 d.polygon([(ix0, y + 18), (ix1, y + 18), ((ix0 + ix1) // 2, y)], fill=None, outline=NAVY)
 d.line([(ix0, y + 18), (ix1, y + 18), ((ix0 + ix1) // 2, y), (ix0, y + 18)], fill=NAVY, width=2)
 for i in range(5):
@@ -137,7 +164,7 @@ for fx in (MX + 120, MX + 190, W - MX - 190, W - MX - 120):
     d.line([(fx, y + 34), (fx + 9, y + 22)], fill=TEAL, width=2)
 y += 54
 
-f_body = font(SERIF_REG, 14)
+f_body = font(SERIF_REG, 13)
 colw = (W - 2 * MX - 24) // 2
 main_text = ("The International Court of Justice ruled that Myanmar committed genocide "
              "against the Rohingya — the first such judgment ever delivered against a State. "
@@ -145,8 +172,8 @@ main_text = ("The International Court of Justice ruled that Myanmar committed ge
 main_text2 = ("In Cox's Bazar and in refugee communities worldwide, Rohingya families "
               "cheered a verdict awaited for years. Myanmar must now report to the court "
               "on reparations and guarantees against repetition.")
-y1 = para(MX, y, main_text, f_body, colw, 18)
-y2 = para(MX + colw + 24, y, main_text2, f_body, colw, 18)
+y1 = dropcap_para(MX, y, main_text, f_body, colw, 17)
+y2 = dropcap_para(MX + colw + 24, y, main_text2, f_body, colw, 17)
 y = max(y1, y2) + 6
 hline(MX, W - MX, y, INK, 2)
 y += 10
@@ -157,6 +184,8 @@ XS = [MX, MX + COLW + 18, MX + 2 * (COLW + 18)]
 
 def article(idx, ytop, kick, head, head_size, body, icon=None):
     x = XS[idx]
+    # short red accent tick above the kicker, a classic section marker
+    d.rectangle([x, ytop - 6, x + 30, ytop - 3], fill=RED)
     kicker(x, ytop, kick)
     yy = ytop + 17
     for ln in wrap(head, font(SERIF_BOLD, head_size), COLW):
@@ -259,10 +288,13 @@ briefs = [
     'Cambridge Word of the Year is "Human".',
 ]
 f_brief = font(SERIF_REG, 11)
-box_h = 22 + sum(len(wrap(b, f_brief, COLW - 18)) * 13 + 4 for b in briefs) + 4
+box_h = 24 + sum(len(wrap(b, f_brief, COLW - 18)) * 13 + 4 for b in briefs) + 4
 d.rectangle([bx - 6, row_top - 4, bx + COLW + 6, row_top - 4 + box_h], fill=(238, 232, 214), outline=INK)
-d.text((bx + 2, row_top + 2), "AROUND THE WORLD — IN BRIEF", font=font(SANS_CONDB, 12), fill=NAVY)
-by = row_top + 22
+bh = "AROUND THE WORLD — IN BRIEF"
+d.text((bx + (COLW - tw(bh, font(SANS_CONDB, 12))) / 2, row_top + 2), bh,
+       font=font(SANS_CONDB, 12), fill=NAVY)
+hline(bx + 2, bx + COLW - 2, row_top + 19, NAVY, 1)
+by = row_top + 24
 for b in briefs:
     d.text((bx + 2, by), "•", font=font(SERIF_BOLD, 12), fill=RED)
     by = para(bx + 16, by, b, f_brief, COLW - 18, 13) + 4
